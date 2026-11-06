@@ -1,0 +1,27 @@
+{
+    "name": "web-development-final-project",
+    "version": "0.1.0",
+    "private": true,
+    "description": "University web development final project: a geographic map editor.",
+    "type": "module",
+    "packageManager": "npm@11.19.1",
+    "engines": {
+        "node": "24.x",
+        "npm": "11.x"
+    },
+    "scripts": {
+        "check": "npm run format:check && npm run lint && npm run typecheck",
+        "format": "prettier --write .",
+        "format:check": "prettier --check .",
+        "lint": "eslint . --max-warnings 0",
+        "lint:fix": "eslint . --fix --max-warnings 0",
+        "typecheck": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "@eslint/js": "10.0.1",
+        "eslint": "10.13.0",
+        "prettier": "3.9.10",
+        "typescript": "6.0.3",
+        "typescript-eslint": "8.72.0"
+    }
+}
