@@ -1,29 +1,55 @@
-import { useEffect, useRef } from 'react';
-import Map from 'ol/Map.js';
-import View from 'ol/View.js';
-import TileLayer from 'ol/layer/Tile.js';
-import { fromLonLat } from 'ol/proj.js';
-import OSM from 'ol/source/OSM.js';
-
-const DEFAULT_CENTER = [24.9, 56.7];
-const DEFAULT_ZOOM = 7.3;
+import AttributesPanel from './AttributesPanel';
+import MapStatus from './MapStatus';
+import MapToolbar from './MapToolbar';
+import { useGeometryAttributes } from './useGeometryAttributes';
+import { useMapEditor } from './useMapEditor';
 
 export default function MapView() {
-    const mapElement = useRef<HTMLDivElement>(null);
+    const { mapElement, state, actions, attributeTarget } = useMapEditor();
+    const attributes = useGeometryAttributes(attributeTarget);
+    const className = state.isDrawing ? 'map-workspace map-workspace--drawing' : 'map-workspace';
 
-    useEffect(() => {
-        if (!mapElement.current) {
-            return;
+    function openAttributes() {
+        if (state.isDrawing) {
+            actions.save();
         }
+        attributes.open();
+    }
 
-        const map = new Map({
-            target: mapElement.current,
-            layers: [new TileLayer({ source: new OSM() })],
-            view: new View({ center: fromLonLat(DEFAULT_CENTER), zoom: DEFAULT_ZOOM }),
-        });
-
-        return () => map.setTarget(undefined);
-    }, []);
-
-    return <div ref={mapElement} className="app__map" aria-label="Interactive map" />;
+    return (
+        <section
+            className={className}
+            aria-label="Map workspace"
+            onKeyDown={(event) => {
+                if (event.key === 'Escape') {
+                    if (attributes.isOpen) {
+                        attributes.close();
+                    } else {
+                        actions.escape();
+                    }
+                }
+            }}
+        >
+            <div className="map-workspace__canvas">
+                <div
+                    ref={mapElement}
+                    className="app__map"
+                    role="region"
+                    aria-label="Interactive map"
+                    tabIndex={0}
+                />
+                <MapToolbar
+                    state={state}
+                    actions={actions}
+                    attributes={{
+                        canOpen: attributes.canOpen || state.canSave,
+                        isOpen: attributes.isOpen,
+                        open: openAttributes,
+                    }}
+                />
+                <MapStatus state={state} />
+            </div>
+            <AttributesPanel editor={attributes} />
+        </section>
+    );
 }

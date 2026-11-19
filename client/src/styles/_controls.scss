@@ -1,0 +1,74 @@
+@use './theme';
+
+.map-button {
+    @include theme.floating-panel;
+    display: grid;
+    place-items: center;
+    width: 2.75rem;
+    height: 2.75rem;
+    flex-shrink: 0;
+    padding: 0.625rem;
+    background: theme.$control-bg;
+    color: #ffffff;
+
+    &:hover:not(:disabled) {
+        background: #1e302b;
+    }
+
+    &[aria-pressed='true'] {
+        border-color: #84dfc4;
+        background: theme.$accent;
+    }
+
+    &:disabled {
+        color: #a5b0ac;
+        cursor: default;
+    }
+
+    &--delete:hover:not(:disabled) {
+        background: #a13d39;
+    }
+
+    svg {
+        width: 100%;
+        height: 100%;
+    }
+}
+
+.map-navigation,
+.drawing-tools {
+    position: absolute;
+    z-index: 1;
+    top: 1rem;
+    display: flex;
+    gap: 0.375rem;
+}
+
+.map-navigation {
+    left: 1rem;
+    flex-direction: column;
+}
+
+.drawing-tools {
+    right: 1rem;
+    max-width: calc(100% - 5rem);
+    flex-wrap: wrap;
+    justify-content: flex-end;
+
+    &__types {
+        display: flex;
+        gap: inherit;
+    }
+}
+
+@media (max-width: 600px) {
+    .map-navigation {
+        top: 0.75rem;
+        left: 0.75rem;
+    }
+
+    .drawing-tools {
+        top: 0.75rem;
+        right: 0.75rem;
+    }
+}

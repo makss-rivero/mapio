@@ -17,4 +17,14 @@ export default defineConfig([
             curly: ['error', 'all'],
         },
     },
+    {
+        files: ['client/src/**/*.{ts,tsx}'],
+        rules: {
+            'max-lines': ['error', { max: 180, skipBlankLines: true, skipComments: true }],
+            'max-lines-per-function': [
+                'error',
+                { max: 80, skipBlankLines: true, skipComments: true },
+            ],
+        },
+    },
 ]);

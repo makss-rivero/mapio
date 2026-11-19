@@ -1,0 +1,10 @@
+$header-bg: #172a3a;
+$header-fg: #ffffff;
+$control-bg: #34423f;
+$accent: #147d64;
+
+@mixin floating-panel {
+    border: 1px solid rgba(23, 42, 58, 0.16);
+    border-radius: 6px;
+    box-shadow: 0 2px 12px rgba(23, 42, 58, 0.16);
+}
