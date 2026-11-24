@@ -3,7 +3,8 @@
     "version": "0.1.0",
     "private": true,
     "workspaces": [
-        "client"
+        "client",
+        "server"
     ],
     "description": "University web development final project: a geographic map editor.",
     "type": "module",
@@ -16,12 +17,13 @@
         "check": "npm run format:check && npm run lint && npm run typecheck",
         "test": "node --test client/src/map/geometry.test.ts",
         "dev": "npm run dev --workspace @mapio/client",
+        "dev:server": "npm run dev --workspace @mapio/server",
         "build": "npm run build --workspace @mapio/client",
         "format": "prettier --write .",
         "format:check": "prettier --check .",
         "lint": "eslint . --max-warnings 0",
         "lint:fix": "eslint . --fix --max-warnings 0",
-        "typecheck": "tsc --noEmit && npm run typecheck --workspace @mapio/client"
+        "typecheck": "tsc --noEmit && npm run typecheck --workspaces"
     },
     "devDependencies": {
         "@eslint/js": "10.0.1",
