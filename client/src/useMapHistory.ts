@@ -1,11 +1,17 @@
 import { useCallback, useState } from 'react';
 import type Feature from 'ol/Feature.js';
 import type VectorSource from 'ol/source/Vector.js';
+import { isStoredGeometry } from './map/geometryApi';
 
 type HistoryEntry = { action: 'add' | 'delete'; feature: Feature };
 
-export function useMapHistory(source?: VectorSource) {
+export function useMapHistory(
+    source: VectorSource | undefined,
+    hasPendingCreate: (feature: Feature) => boolean,
+) {
     const [entries, setEntries] = useState<HistoryEntry[]>([]);
+    const entry = entries.filter(({ feature }) => !isStoredGeometry(feature)).at(-1);
+    const canUndo = entry !== undefined && !hasPendingCreate(entry.feature);
     const recordAddition = useCallback((feature: Feature) => {
         setEntries((previous) => [...previous, { action: 'add', feature }]);
     }, []);
@@ -18,9 +24,7 @@ export function useMapHistory(source?: VectorSource) {
     }
 
     function undo() {
-        const entry = entries.at(-1);
-
-        if (!entry || !source) {
+        if (!entry || !source || hasPendingCreate(entry.feature)) {
             return;
         }
 
@@ -30,8 +34,8 @@ export function useMapHistory(source?: VectorSource) {
             source.addFeature(entry.feature);
         }
 
-        setEntries((previous) => previous.slice(0, -1));
+        setEntries((previous) => previous.filter((item) => item !== entry));
     }
 
-    return { recordAddition, deleteFeature, undo, canUndo: entries.length > 0 };
+    return { recordAddition, deleteFeature, undo, canUndo };
 }

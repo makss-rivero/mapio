@@ -133,6 +133,13 @@
                 background: #0e604d;
             }
         }
+
+        button:disabled {
+            border-color: #d6dfdb;
+            background: #edf2ef;
+            color: #566a62;
+            cursor: default;
+        }
     }
 }
 

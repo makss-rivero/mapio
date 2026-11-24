@@ -26,6 +26,7 @@ export type EditorState = {
     canDelete: boolean;
     featureCount: number;
     selectedType?: string;
+    isSelectedStored: boolean;
 };
 
 export type EditorActions = {

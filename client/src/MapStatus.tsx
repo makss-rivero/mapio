@@ -1,4 +1,5 @@
 import type { EditorState, GeometryType } from './map/types';
+import type { SavedGeometriesLoad } from './useSavedGeometries';
 
 const DRAWING_INSTRUCTIONS: Record<GeometryType, string> = {
     Point: 'Click to place a point, then press Save. Select or Esc stops drawing.',
@@ -16,8 +17,9 @@ function getStatusContent(state: EditorState) {
     if (state.selectedType) {
         return {
             title: `${state.selectedType} selected`,
-            instructions:
-                'Use Attributes to edit details, or the trash button to delete this geometry.',
+            instructions: state.isSelectedStored
+                ? 'Open Attributes to view this saved geometry.'
+                : 'Use Attributes to edit details, or the trash button to delete this geometry.',
         };
     }
     return {
@@ -27,16 +29,30 @@ function getStatusContent(state: EditorState) {
     };
 }
 
-export default function MapStatus({ state }: { state: EditorState }) {
+type MapStatusProps = {
+    state: EditorState;
+    savedLoad: SavedGeometriesLoad;
+};
+
+export default function MapStatus({ state, savedLoad }: MapStatusProps) {
     const { title, instructions } = getStatusContent(state);
     const countLabel = state.featureCount === 1 ? 'geometry' : 'geometries';
     return (
-        <div className="map-status" role="status">
-            <strong>{title}</strong>
-            <span>{instructions}</span>
-            <span className="map-status__count">
-                {state.featureCount} {countLabel} · This session only
-            </span>
+        <div className="map-status">
+            <div className="map-status__summary" role="status">
+                <strong>{title}</strong>
+                <span>{instructions}</span>
+                <span className="map-status__count">
+                    {state.featureCount} {countLabel}
+                </span>
+                {savedLoad.status === 'loading' && <span>Loading saved geometries…</span>}
+                {savedLoad.status === 'error' && <span>{savedLoad.error}</span>}
+            </div>
+            {savedLoad.status === 'error' && (
+                <button className="map-status__retry" type="button" onClick={savedLoad.retry}>
+                    Retry loading
+                </button>
+            )}
         </div>
     );
 }

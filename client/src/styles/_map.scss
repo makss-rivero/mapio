@@ -38,6 +38,16 @@
     font-size: 0.875rem;
     pointer-events: none;
 
+    &__summary {
+        display: grid;
+        gap: inherit;
+    }
+
+    &__retry {
+        justify-self: start;
+        pointer-events: auto;
+    }
+
     &__count {
         margin-top: 0.25rem;
         color: #566a62;

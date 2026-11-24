@@ -15,7 +15,7 @@
     },
     "scripts": {
         "check": "npm run format:check && npm run lint && npm run typecheck",
-        "test": "node --test client/src/map/geometry.test.ts",
+        "test": "node --test \"server/src/geometries/*.test.ts\"",
         "dev": "npm run dev --workspace @mapio/client",
         "dev:server": "npm run dev --workspace @mapio/server",
         "build": "npm run build --workspace @mapio/client",

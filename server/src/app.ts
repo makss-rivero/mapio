@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import express from 'express';
+import { createGeometryRouter } from './geometries/router.ts';
 
 export function createApp(database: DatabaseSync) {
     const app = express();
@@ -15,5 +16,6 @@ export function createApp(database: DatabaseSync) {
         }
     });
 
+    app.use('/api/geometries', createGeometryRouter(database));
     return app;
 }

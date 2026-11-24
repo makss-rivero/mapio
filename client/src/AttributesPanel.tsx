@@ -30,13 +30,21 @@ export default function AttributesPanel({ editor }: { editor: AttributesEditor }
             </header>
             <form
                 className="attributes-panel__form"
+                aria-busy={editor.isSaving}
                 onSubmit={(event) => {
                     event.preventDefault();
                     editor.save();
                 }}
             >
-                <AttributeFields draft={editor.draft} change={editor.change} />
-                <p className="attributes-panel__feedback" role="status">
+                <AttributeFields
+                    draft={editor.draft}
+                    change={editor.change}
+                    readOnly={editor.readOnly}
+                />
+                <p
+                    className="attributes-panel__feedback"
+                    role={editor.hasError ? 'alert' : 'status'}
+                >
                     {editor.message ||
                         (editor.isDirty ? 'Unsaved changes' : 'Details for this geometry')}
                 </p>
@@ -48,15 +56,21 @@ export default function AttributesPanel({ editor }: { editor: AttributesEditor }
                     >
                         Close
                     </button>
-                    <button type="button" aria-label="Discard attributes" onClick={editor.discard}>
+                    <button
+                        type="button"
+                        aria-label="Discard attributes"
+                        disabled={editor.readOnly}
+                        onClick={editor.discard}
+                    >
                         Discard
                     </button>
                     <button
                         type="submit"
                         className="attributes-panel__save"
                         aria-label="Save attributes"
+                        disabled={!editor.canSave}
                     >
-                        Save
+                        {editor.isSaving ? 'Saving…' : 'Save'}
                     </button>
                 </footer>
             </form>
