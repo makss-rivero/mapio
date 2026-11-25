@@ -1,13 +1,15 @@
 import { useEffect, useRef } from 'react';
 import type { AttributesEditor } from './useGeometryAttributes';
 
-type FieldsProps = Pick<AttributesEditor, 'draft' | 'change' | 'readOnly'>;
+type FieldsProps = Pick<AttributesEditor, 'draft' | 'change' | 'readOnly' | 'isOpen'>;
 
-export default function AttributeFields({ draft, change, readOnly }: FieldsProps) {
+export default function AttributeFields({ draft, change, readOnly, isOpen }: FieldsProps) {
     const nameInput = useRef<HTMLInputElement>(null);
     useEffect(() => {
-        nameInput.current?.focus();
-    }, []);
+        if (isOpen) {
+            nameInput.current?.focus();
+        }
+    }, [isOpen]);
 
     return (
         <div className="attributes-panel__fields">

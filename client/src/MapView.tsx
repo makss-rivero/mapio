@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import AttributesPanel from './AttributesPanel';
 import MapStatus from './MapStatus';
 import MapToolbar from './MapToolbar';
@@ -8,13 +9,35 @@ export default function MapView() {
     const { mapElement, state, actions, attributeTarget, savedLoad, persistence, deletion } =
         useMapEditor();
     const attributes = useGeometryAttributes(attributeTarget, persistence, deletion.deleting);
-    const className = state.isDrawing ? 'map-workspace map-workspace--drawing' : 'map-workspace';
+    const attributesButton = useRef<HTMLButtonElement>(null);
+    const restoreFocus = useRef(false);
+    const className = [
+        'map-workspace',
+        state.isDrawing && 'map-workspace--drawing',
+        attributes.isOpen && 'map-workspace--attributes-open',
+    ]
+        .filter(Boolean)
+        .join(' ');
+
+    useEffect(() => {
+        if (!attributes.isOpen && restoreFocus.current) {
+            restoreFocus.current = false;
+            const button = attributesButton.current;
+            const target = button && !button.disabled ? button : mapElement.current;
+            target?.focus({ preventScroll: true });
+        }
+    }, [attributes.isOpen, mapElement]);
 
     function openAttributes() {
         if (state.isDrawing) {
             actions.save();
         }
         attributes.open();
+    }
+
+    function closeAttributes() {
+        restoreFocus.current = true;
+        attributes.close();
     }
 
     return (
@@ -24,7 +47,7 @@ export default function MapView() {
             onKeyDown={(event) => {
                 if (event.key === 'Escape') {
                     if (attributes.isOpen) {
-                        attributes.close();
+                        closeAttributes();
                     } else {
                         actions.escape();
                     }
@@ -46,11 +69,12 @@ export default function MapView() {
                         canOpen: attributes.canOpen || state.canSave,
                         isOpen: attributes.isOpen,
                         open: openAttributes,
+                        buttonRef: attributesButton,
                     }}
                 />
                 <MapStatus state={state} savedLoad={savedLoad} deletion={deletion} />
             </div>
-            <AttributesPanel editor={attributes} />
+            <AttributesPanel editor={attributes} onClose={closeAttributes} />
         </section>
     );
 }

@@ -7,11 +7,11 @@ type HistoryEntry = { action: 'add' | 'delete'; feature: Feature };
 
 export function useMapHistory(
     source: VectorSource | undefined,
-    hasPendingCreate: (feature: Feature) => boolean,
+    hasPendingSave: (feature: Feature) => boolean,
 ) {
     const [entries, setEntries] = useState<HistoryEntry[]>([]);
     const entry = entries.filter(({ feature }) => !isStoredGeometry(feature)).at(-1);
-    const canUndo = entry !== undefined && !hasPendingCreate(entry.feature);
+    const canUndo = entry !== undefined && !hasPendingSave(entry.feature);
     const recordAddition = useCallback((feature: Feature) => {
         setEntries((previous) => [...previous, { action: 'add', feature }]);
     }, []);
@@ -24,7 +24,7 @@ export function useMapHistory(
     }
 
     function undo() {
-        if (!entry || !source || hasPendingCreate(entry.feature)) {
+        if (!entry || !source || hasPendingSave(entry.feature)) {
             return;
         }
 

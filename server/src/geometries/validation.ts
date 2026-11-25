@@ -3,6 +3,7 @@ import type { Geometry, GeometryAttributes, NewGeometry, Position } from './type
 
 const attributeLimits = { name: 120, description: 2000, category: 60 };
 const requestKeyPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+const loneSurrogatePattern = /[\uD800-\uDFFF]/u;
 
 function isObject(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -66,10 +67,14 @@ function readGeometry(value: unknown): Geometry {
 
 function readAttribute(name: keyof GeometryAttributes, value: unknown): string {
     const limit = attributeLimits[name];
-    if (typeof value !== 'string' || [...value].length > limit) {
+    if (
+        typeof value !== 'string' ||
+        loneSurrogatePattern.test(value) ||
+        [...value].length > limit
+    ) {
         throw new GeometryRequestError(
             400,
-            `Attribute "${name}" must be text up to ${limit} characters.`,
+            `Attribute "${name}" must be valid text up to ${limit} characters.`,
         );
     }
     return value;

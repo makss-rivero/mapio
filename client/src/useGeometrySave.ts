@@ -6,27 +6,43 @@ import {
     geometryInput,
     GeometryRequestError,
     updateGeometry,
-    type GeometryInput,
     type StoredGeometry,
 } from './map/geometryApi';
 import type { MapRuntime } from './map/runtime';
 
-type CreateAttempt = { key: string; input: GeometryInput };
+type SaveAttempt = { send: () => Promise<StoredGeometry>; isCreate: boolean };
 type SaveFeedback = { feature: Feature; message: string; isError: boolean };
 
 function applySavedRecord(runtime: MapRuntime, feature: Feature, record: StoredGeometry) {
     const duplicate = runtime.source.getFeatureById(record.id);
     const selected = runtime.selection.getFeatures();
-    const wasSelected = duplicate instanceof Feature && selected.getArray().includes(duplicate);
+    let replaceSelection = false;
     if (duplicate instanceof Feature && duplicate !== feature) {
-        selected.remove(duplicate);
+        replaceSelection = selected.remove(duplicate) !== undefined;
         runtime.source.removeFeature(duplicate);
     }
     feature.set('attributes', record.attributes);
-    feature.setId(record.id);
-    if (wasSelected && duplicate !== feature) {
+    if (feature.getId() !== record.id) {
+        feature.setId(record.id);
+    }
+    if (replaceSelection) {
         selected.push(feature);
     }
+}
+
+function prepareSave(feature: Feature, attributes: GeometryAttributes): SaveAttempt | undefined {
+    const id = feature.getId();
+    if (typeof id === 'number') {
+        const changes = changedAttributes(readAttributes(feature), attributes);
+        if (Object.keys(changes).length > 0) {
+            return { send: () => updateGeometry(id, changes), isCreate: false };
+        }
+        return;
+    }
+
+    const input = geometryInput(feature, attributes);
+    const key = crypto.randomUUID();
+    return { send: () => createGeometry(input, key), isCreate: true };
 }
 
 function wasRejected(error: unknown): error is GeometryRequestError {
@@ -39,61 +55,45 @@ function wasRejected(error: unknown): error is GeometryRequestError {
 }
 
 export function useGeometrySave(runtime: MapRuntime | null, mutationLock: RefObject<boolean>) {
-    const attempts = useRef(new WeakMap<Feature, CreateAttempt>());
+    const attempts = useRef(new WeakMap<Feature, SaveAttempt>());
     const [saving, setSaving] = useState<Feature | null>(null);
     const [feedback, setFeedback] = useState<SaveFeedback | null>(null);
-
-    function prepareCreate(feature: Feature, attributes: GeometryAttributes) {
-        const cached = attempts.current.get(feature);
-        if (cached) {
-            return cached;
-        }
-        try {
-            const attempt = { key: crypto.randomUUID(), input: geometryInput(feature, attributes) };
-            attempts.current.set(feature, attempt);
-            return attempt;
-        } catch (error) {
-            const message = error instanceof Error ? error.message : 'Could not prepare geometry.';
-            setFeedback({ feature, message, isError: true });
-        }
-    }
 
     async function save(feature: Feature, attributes: GeometryAttributes): Promise<boolean> {
         if (mutationLock.current || !runtime) {
             return false;
         }
-        const id = feature.getId();
-        const stored = typeof id === 'number';
-        const changes = changedAttributes(readAttributes(feature), attributes);
-        const attempt = stored ? undefined : prepareCreate(feature, attributes);
-        let request: () => Promise<StoredGeometry>;
-        if (attempt) {
-            request = () => createGeometry(attempt.input, attempt.key);
-        } else if (stored && Object.keys(changes).length > 0) {
-            request = () => updateGeometry(id, changes);
-        } else {
+
+        let attempt: SaveAttempt | undefined;
+        try {
+            attempt = attempts.current.get(feature) ?? prepareSave(feature, attributes);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Could not prepare geometry.';
+            setFeedback({ feature, message, isError: true });
+            return false;
+        }
+        if (!attempt) {
             return false;
         }
 
+        attempts.current.set(feature, attempt);
         mutationLock.current = true;
         setSaving(feature);
         setFeedback(null);
         try {
-            const record = await request();
+            const record = await attempt.send();
             applySavedRecord(runtime, feature, record);
             attempts.current.delete(feature);
             setFeedback({
                 feature,
-                message: stored
-                    ? 'Attributes saved.'
-                    : 'Geometry and attributes saved to the database.',
+                message: attempt.isCreate
+                    ? 'Geometry and attributes saved to the database.'
+                    : 'Attributes saved.',
                 isError: false,
             });
             return true;
         } catch (error) {
-            let message = stored
-                ? 'Could not confirm the attribute update. Retry Save.'
-                : 'Save could not be confirmed. Retry Save to check.';
+            let message = 'Save could not be confirmed. Retry Save to check.';
             if (wasRejected(error)) {
                 attempts.current.delete(feature);
                 message = error.message;
@@ -111,7 +111,7 @@ export function useGeometrySave(runtime: MapRuntime | null, mutationLock: RefObj
         saving,
         feedback,
         clearFeedback: () => setFeedback(null),
-        hasPendingCreate: (feature: Feature) => attempts.current.has(feature),
+        hasPendingSave: (feature: Feature) => attempts.current.has(feature),
     };
 }
 

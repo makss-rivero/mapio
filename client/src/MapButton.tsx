@@ -1,3 +1,4 @@
+import type { Ref } from 'react';
 import MapIcon, { type MapIconName } from './MapIcon';
 
 type MapButtonProps = {
@@ -9,6 +10,7 @@ type MapButtonProps = {
     className?: string;
     expanded?: boolean;
     controls?: string;
+    ref?: Ref<HTMLButtonElement>;
     onClick: () => void;
 };
 
@@ -21,10 +23,12 @@ export default function MapButton({
     className = '',
     expanded,
     controls,
+    ref,
     onClick,
 }: MapButtonProps) {
     return (
         <button
+            ref={ref}
             className={`map-button ${className}`.trim()}
             type="button"
             aria-label={label}

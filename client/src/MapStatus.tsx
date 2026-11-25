@@ -47,13 +47,15 @@ export default function MapStatus({ state, savedLoad, deletion }: MapStatusProps
                     {state.featureCount} {countLabel}
                 </span>
                 {savedLoad.status === 'loading' && <span>Loading saved geometries…</span>}
-                {savedLoad.status === 'error' && <span>{savedLoad.error}</span>}
                 {deletion.deleting && <span>Deleting saved geometry…</span>}
                 {deletion.message && !deletion.message.isError && (
                     <span>{deletion.message.text}</span>
                 )}
             </div>
-            {deletion.message?.isError && <span role="alert">{deletion.message.text}</span>}
+            <div className="map-status__errors" role="alert">
+                {savedLoad.status === 'error' && <span>{savedLoad.error}</span>}
+                {deletion.message?.isError && <span>{deletion.message.text}</span>}
+            </div>
             {savedLoad.status === 'error' && (
                 <button className="map-status__retry" type="button" onClick={savedLoad.retry}>
                     Retry loading

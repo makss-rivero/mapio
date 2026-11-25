@@ -23,7 +23,7 @@ export function useMapEditor() {
     const persistence = useGeometrySave(runtime, mutationLock);
     const deletion = useGeometryDelete(runtime, mutationLock);
     const savedLoad = useSavedGeometries(runtime?.source, deletion.deletedIds);
-    const history = useMapHistory(runtime?.source, persistence.hasPendingCreate);
+    const history = useMapHistory(runtime?.source, persistence.hasPendingSave);
     const drawing = useDrawing(runtime, isDrawing, geometryType, history.recordAddition);
     const isSketching = drawing.progress.status === 'sketching';
     const clearSelection = () => runtime?.selection.getFeatures().clear();
@@ -32,7 +32,7 @@ export function useMapEditor() {
         selectedFeature !== null &&
         !isDrawing &&
         !(persistence.saving || deletion.deleting) &&
-        !persistence.hasPendingCreate(selectedFeature);
+        (isStoredGeometry(selectedFeature) || !persistence.hasPendingSave(selectedFeature));
 
     function save() {
         const feature = drawing.finish();
@@ -60,7 +60,7 @@ export function useMapEditor() {
             return;
         }
         if (isStoredGeometry(selectedFeature)) {
-            deletion.deleteSaved(selectedFeature);
+            void deletion.deleteSaved(selectedFeature);
             return;
         }
         clearSelection();

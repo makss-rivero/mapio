@@ -15,7 +15,8 @@
         background: #1e302b;
     }
 
-    &[aria-pressed='true'] {
+    &[aria-pressed='true'],
+    &[aria-expanded='true'] {
         border-color: #84dfc4;
         background: theme.$accent;
     }

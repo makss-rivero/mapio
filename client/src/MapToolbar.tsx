@@ -1,3 +1,4 @@
+import type { RefObject } from 'react';
 import MapButton from './MapButton';
 import { GEOMETRY_TYPES, type EditorActions, type EditorState } from './map/types';
 import type { AttributesEditor } from './useGeometryAttributes';
@@ -5,11 +6,12 @@ import type { AttributesEditor } from './useGeometryAttributes';
 type ToolbarProps = {
     state: EditorState;
     actions: EditorActions;
-    attributes: Pick<AttributesEditor, 'canOpen' | 'isOpen' | 'open'>;
+    attributes: Pick<AttributesEditor, 'canOpen' | 'isOpen' | 'open'> & {
+        buttonRef: RefObject<HTMLButtonElement | null>;
+    };
 };
 
 function DrawingTools({ state, actions, attributes }: ToolbarProps) {
-    const drawLabel = state.isDrawing ? 'Stop drawing' : 'Start drawing';
     return (
         <div className="drawing-tools" role="group" aria-label="Drawing tools">
             <MapButton
@@ -20,10 +22,9 @@ function DrawingTools({ state, actions, attributes }: ToolbarProps) {
             />
             <MapButton
                 icon="draw"
-                label={drawLabel}
+                label="Draw geometry"
                 pressed={state.isDrawing}
-                hint={state.isDrawing ? 'Stop drawing (Esc)' : drawLabel}
-                className="drawing-tools__toggle"
+                hint={state.isDrawing ? 'Stop drawing (Esc)' : 'Start drawing'}
                 onClick={actions.toggleDrawing}
             />
             <div className="drawing-tools__types" role="group" aria-label="Geometry type">
@@ -52,10 +53,10 @@ function DrawingTools({ state, actions, attributes }: ToolbarProps) {
                 onClick={actions.undo}
             />
             <MapButton
+                ref={attributes.buttonRef}
                 icon="attributes"
                 label="Attributes"
                 disabled={!attributes.canOpen}
-                pressed={attributes.isOpen}
                 expanded={attributes.isOpen}
                 controls="geometry-attributes"
                 onClick={attributes.open}

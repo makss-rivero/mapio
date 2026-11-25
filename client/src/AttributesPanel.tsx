@@ -2,16 +2,20 @@ import AttributeFields from './AttributeFields';
 import MapIcon from './MapIcon';
 import type { AttributesEditor } from './useGeometryAttributes';
 
-export default function AttributesPanel({ editor }: { editor: AttributesEditor }) {
-    if (!editor.isOpen) {
-        return null;
-    }
+type AttributesPanelProps = {
+    editor: AttributesEditor;
+    onClose: () => void;
+};
 
+export default function AttributesPanel({ editor, onClose }: AttributesPanelProps) {
+    const message =
+        editor.message || (editor.isDirty ? 'Unsaved changes' : 'Details for this geometry');
     return (
         <aside
             id="geometry-attributes"
             className="attributes-panel"
             aria-labelledby="attributes-title"
+            hidden={!editor.isOpen}
         >
             <header className="attributes-panel__header">
                 <div>
@@ -23,14 +27,13 @@ export default function AttributesPanel({ editor }: { editor: AttributesEditor }
                     type="button"
                     aria-label="Close attributes"
                     title="Close attributes"
-                    onClick={editor.close}
+                    onClick={onClose}
                 >
                     <MapIcon name="close" />
                 </button>
             </header>
             <form
                 className="attributes-panel__form"
-                aria-busy={editor.isSaving}
                 onSubmit={(event) => {
                     event.preventDefault();
                     editor.save();
@@ -40,20 +43,16 @@ export default function AttributesPanel({ editor }: { editor: AttributesEditor }
                     draft={editor.draft}
                     change={editor.change}
                     readOnly={editor.readOnly}
+                    isOpen={editor.isOpen}
                 />
-                <p
-                    className="attributes-panel__feedback"
-                    role={editor.hasError ? 'alert' : 'status'}
-                >
-                    {editor.message ||
-                        (editor.isDirty ? 'Unsaved changes' : 'Details for this geometry')}
+                <p className="attributes-panel__feedback" role="status">
+                    {!editor.hasError && message}
+                </p>
+                <p className="attributes-panel__feedback" role="alert">
+                    {editor.hasError && message}
                 </p>
                 <footer className="attributes-panel__actions">
-                    <button
-                        type="button"
-                        aria-label="Close attributes panel"
-                        onClick={editor.close}
-                    >
+                    <button type="button" aria-label="Close attributes panel" onClick={onClose}>
                         Close
                     </button>
                     <button

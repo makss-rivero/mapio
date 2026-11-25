@@ -43,6 +43,16 @@
         gap: inherit;
     }
 
+    &__errors {
+        display: grid;
+        gap: inherit;
+        color: #a13d39;
+
+        &:empty {
+            position: absolute;
+        }
+    }
+
     &__retry {
         justify-self: start;
         pointer-events: auto;

@@ -20,18 +20,20 @@ export function useGeometryAttributes(
     const [drafts, setDrafts] = useState(new Map<Feature, GeometryAttributes>());
     const [feedback, setFeedback] = useState<{ feature: Feature; text: string } | null>(null);
     const stored = target !== null && isStoredGeometry(target);
-    const pending = target !== null && persistence.hasPendingCreate(target);
+    const pending = target !== null && persistence.hasPendingSave(target);
     const isSaving = target !== null && persistence.saving === target;
     const readOnly = pending || isSaving || (target !== null && target === deleting);
     const saved = readAttributes(target);
     const draft = (target && drafts.get(target)) || saved;
     const isDirty = !attributesMatch(draft, saved);
-    const canSave = target !== null && !persistence.saving && !deleting && (!stored || isDirty);
+    const canSave =
+        target !== null && !persistence.saving && !deleting && (!stored || isDirty || pending);
     const saveFeedback = persistence.feedback?.feature === target ? persistence.feedback : null;
     const message = getMessage({
         isSaving,
         stored,
         pending,
+        isDirty,
         feedback: saveFeedback?.message ?? (feedback?.feature === target ? feedback.text : ''),
     });
 
@@ -89,10 +91,7 @@ export function useGeometryAttributes(
         change,
         save,
         discard,
-        open: () => {
-            setPanelOpen(true);
-            setFeedback(null);
-        },
+        open: () => setPanelOpen(true),
         close: () => setPanelOpen(false),
     };
 }
@@ -101,11 +100,13 @@ function getMessage({
     isSaving,
     stored,
     pending,
+    isDirty,
     feedback,
 }: {
     isSaving: boolean;
     stored: boolean;
     pending: boolean;
+    isDirty: boolean;
     feedback: string;
 }) {
     if (isSaving) {
@@ -114,8 +115,11 @@ function getMessage({
     if (feedback) {
         return feedback;
     }
-    if (stored) {
+    if (pending) {
+        return 'Save could not be confirmed. Retry Save to check.';
+    }
+    if (stored && !isDirty) {
         return 'Saved in the database.';
     }
-    return pending ? 'Save could not be confirmed. Retry Save to check.' : '';
+    return '';
 }

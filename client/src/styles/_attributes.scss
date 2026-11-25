@@ -11,6 +11,10 @@
     border-left: 1px solid #cbd7d1;
     background: #ffffff;
 
+    &[hidden] {
+        display: none;
+    }
+
     &__header {
         display: flex;
         align-items: center;
@@ -96,6 +100,14 @@
         padding: 0 1.25rem 1.25rem;
         color: #566a62;
         font-size: 0.875rem;
+
+        &:empty {
+            padding: 0;
+        }
+
+        &[role='alert'] {
+            color: #a13d39;
+        }
     }
 
     &__actions {
@@ -145,10 +157,19 @@
 
 @media (max-width: 700px) {
     .attributes-panel {
+        width: 55%;
+    }
+}
+
+@media (max-width: 520px) {
+    .map-workspace--attributes-open .map-workspace__canvas {
+        visibility: hidden;
+    }
+
+    .attributes-panel {
         position: absolute;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        box-shadow: -4px 0 20px rgba(23, 42, 58, 0.18);
+        inset: 0;
+        width: 100%;
+        border-left: 0;
     }
 }
