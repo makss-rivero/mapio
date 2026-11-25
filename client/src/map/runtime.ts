@@ -35,7 +35,7 @@ export function createMapRuntime(target: HTMLDivElement) {
     return { map, source, selection };
 }
 
-export function resetView(view: View) {
+function resetView(view: View) {
     view.cancelAnimations();
     view.animate({
         center: fromLonLat(DEFAULT_CENTER),
@@ -45,11 +45,23 @@ export function resetView(view: View) {
     });
 }
 
-export function zoomView(view: View, delta: number) {
+function zoomView(view: View, delta: number) {
     const zoom = view.getZoom();
 
     if (zoom !== undefined) {
         view.cancelAnimations();
         view.animate({ zoom: zoom + delta, duration: 200 });
     }
+}
+
+export function mapNavigation(view: View | undefined, abortDrawing: () => void) {
+    return {
+        home: () => {
+            abortDrawing();
+            if (view) {
+                resetView(view);
+            }
+        },
+        zoom: (delta: number) => view && zoomView(view, delta),
+    };
 }

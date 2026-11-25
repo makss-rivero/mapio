@@ -63,15 +63,13 @@ export function useGeometryAttributes(
         }
     }
 
-    async function save() {
-        if (!canSave || !target) {
-            return;
-        }
+    async function saveFeature(feature: Feature) {
+        const values = drafts.get(feature) ?? readAttributes(feature);
         setFeedback(null);
-        if (await persistence.save(target, draft)) {
+        if (await persistence.save(feature, values)) {
             setDrafts((previous) => {
                 const remaining = new Map(previous);
-                remaining.delete(target);
+                remaining.delete(feature);
                 return remaining;
             });
         }
@@ -89,7 +87,8 @@ export function useGeometryAttributes(
         message,
         hasError: saveFeedback?.isError || (pending && !isSaving),
         change,
-        save,
+        save: () => (canSave && target ? saveFeature(target) : undefined),
+        saveFeature,
         discard,
         open: () => setPanelOpen(true),
         close: () => setPanelOpen(false),

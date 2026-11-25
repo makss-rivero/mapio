@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { isStoredGeometry } from './map/geometryApi';
-import { resetView, zoomView } from './map/runtime';
+import { mapNavigation } from './map/runtime';
 import {
     canFinishDrawing,
     type EditorActions,
@@ -27,20 +27,24 @@ export function useMapEditor() {
     const drawing = useDrawing(runtime, isDrawing, geometryType, history.recordAddition);
     const isSketching = drawing.progress.status === 'sketching';
     const clearSelection = () => runtime?.selection.getFeatures().clear();
-    const view = runtime?.map.getView();
+    const canFinish = isDrawing && canFinishDrawing(drawing.progress, geometryType);
+    const busy = persistence.saving !== null || deletion.deleting !== null;
+    const selectedIsDraft = selectedFeature !== null && !isStoredGeometry(selectedFeature);
     const canDelete =
         selectedFeature !== null &&
         !isDrawing &&
-        !(persistence.saving || deletion.deleting) &&
-        (isStoredGeometry(selectedFeature) || !persistence.hasPendingSave(selectedFeature));
+        !busy &&
+        (!selectedIsDraft || !persistence.hasPendingSave(selectedFeature));
 
-    function save() {
+    function finishDrawing() {
         const feature = drawing.finish();
-        if (feature && runtime) {
-            setIsDrawing(false);
-            clearSelection();
-            runtime.selection.getFeatures().push(feature);
+        if (!feature || !runtime) {
+            return null;
         }
+        setIsDrawing(false);
+        clearSelection();
+        runtime.selection.getFeatures().push(feature);
+        return feature;
     }
 
     function undo() {
@@ -73,23 +77,18 @@ export function useMapEditor() {
         featureCount,
         selectedType: selectedFeature?.getGeometry()?.getType(),
         canUndo: isSketching || history.canUndo,
-        canSave: isDrawing && canFinishDrawing(drawing.progress, geometryType),
+        canFinishDrawing: canFinish,
+        canSaveGeometry: !busy && (isDrawing ? canFinish : selectedIsDraft),
         canDelete,
     };
     const actions: EditorActions = {
         chooseGeometry: setGeometryType,
         toggleDrawing: () => setIsDrawing((active) => !active),
         select: () => setIsDrawing(false),
-        save,
+        finishDrawing,
         undo,
         deleteSelected,
-        home: () => {
-            drawing.abort();
-            if (view) {
-                resetView(view);
-            }
-        },
-        zoom: (delta) => view && zoomView(view, delta),
+        ...mapNavigation(runtime?.map.getView(), drawing.abort),
         escape: () => {
             setIsDrawing(false);
             clearSelection();

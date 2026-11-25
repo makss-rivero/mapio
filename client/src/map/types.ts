@@ -1,3 +1,5 @@
+import type Feature from 'ol/Feature.js';
+
 export const GEOMETRY_TYPES = ['Point', 'LineString', 'Polygon'] as const;
 export type GeometryType = (typeof GEOMETRY_TYPES)[number];
 
@@ -22,7 +24,8 @@ export type EditorState = {
     geometryType: GeometryType;
     isDrawing: boolean;
     canUndo: boolean;
-    canSave: boolean;
+    canFinishDrawing: boolean;
+    canSaveGeometry: boolean;
     canDelete: boolean;
     featureCount: number;
     selectedType?: string;
@@ -32,7 +35,7 @@ export type EditorActions = {
     chooseGeometry: (type: GeometryType) => void;
     toggleDrawing: () => void;
     select: () => void;
-    save: () => void;
+    finishDrawing: () => Feature | null;
     undo: () => void;
     deleteSelected: () => void;
     home: () => void;

@@ -29,10 +29,17 @@ export default function MapView() {
     }, [attributes.isOpen, mapElement]);
 
     function openAttributes() {
-        if (state.isDrawing) {
-            actions.save();
+        if (state.isDrawing && !actions.finishDrawing()) {
+            return;
         }
         attributes.open();
+    }
+
+    function saveGeometry() {
+        const feature = state.isDrawing ? actions.finishDrawing() : attributeTarget;
+        if (feature) {
+            void attributes.saveFeature(feature);
+        }
     }
 
     function closeAttributes() {
@@ -46,11 +53,8 @@ export default function MapView() {
             aria-label="Map workspace"
             onKeyDown={(event) => {
                 if (event.key === 'Escape') {
-                    if (attributes.isOpen) {
-                        closeAttributes();
-                    } else {
-                        actions.escape();
-                    }
+                    const closeOrEscape = attributes.isOpen ? closeAttributes : actions.escape;
+                    closeOrEscape();
                 }
             }}
         >
@@ -65,14 +69,20 @@ export default function MapView() {
                 <MapToolbar
                     state={state}
                     actions={actions}
+                    saveGeometry={saveGeometry}
                     attributes={{
-                        canOpen: attributes.canOpen || state.canSave,
+                        canOpen: state.isDrawing ? state.canFinishDrawing : attributes.canOpen,
                         isOpen: attributes.isOpen,
                         open: openAttributes,
                         buttonRef: attributesButton,
                     }}
                 />
-                <MapStatus state={state} savedLoad={savedLoad} deletion={deletion} />
+                <MapStatus
+                    state={state}
+                    savedLoad={savedLoad}
+                    deletion={deletion}
+                    save={attributes.isOpen ? undefined : attributes}
+                />
             </div>
             <AttributesPanel editor={attributes} onClose={closeAttributes} />
         </section>

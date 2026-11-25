@@ -6,12 +6,13 @@ import type { AttributesEditor } from './useGeometryAttributes';
 type ToolbarProps = {
     state: EditorState;
     actions: EditorActions;
+    saveGeometry: () => void;
     attributes: Pick<AttributesEditor, 'canOpen' | 'isOpen' | 'open'> & {
         buttonRef: RefObject<HTMLButtonElement | null>;
     };
 };
 
-function DrawingTools({ state, actions, attributes }: ToolbarProps) {
+function DrawingTools({ state, actions, attributes, saveGeometry }: ToolbarProps) {
     return (
         <div className="drawing-tools" role="group" aria-label="Drawing tools">
             <MapButton
@@ -41,9 +42,9 @@ function DrawingTools({ state, actions, attributes }: ToolbarProps) {
             <MapButton
                 icon="save"
                 label="Save geometry"
-                hint="Save the current geometry on this map"
-                disabled={!state.canSave}
-                onClick={actions.save}
+                hint="Save the geometry to the database"
+                disabled={!state.canSaveGeometry}
+                onClick={saveGeometry}
             />
             <MapButton
                 icon="undo"
@@ -72,7 +73,7 @@ function DrawingTools({ state, actions, attributes }: ToolbarProps) {
     );
 }
 
-export default function MapToolbar({ state, actions, attributes }: ToolbarProps) {
+export default function MapToolbar({ state, actions, attributes, saveGeometry }: ToolbarProps) {
     return (
         <>
             <nav className="map-navigation" aria-label="Map navigation">
@@ -85,7 +86,12 @@ export default function MapToolbar({ state, actions, attributes }: ToolbarProps)
                 <MapButton icon="plus" label="Zoom in" onClick={() => actions.zoom(1)} />
                 <MapButton icon="minus" label="Zoom out" onClick={() => actions.zoom(-1)} />
             </nav>
-            <DrawingTools state={state} actions={actions} attributes={attributes} />
+            <DrawingTools
+                state={state}
+                actions={actions}
+                attributes={attributes}
+                saveGeometry={saveGeometry}
+            />
         </>
     );
 }
