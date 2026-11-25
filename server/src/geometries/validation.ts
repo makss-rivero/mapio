@@ -64,28 +64,27 @@ function readGeometry(value: unknown): Geometry {
     );
 }
 
+function readAttribute(name: keyof GeometryAttributes, value: unknown): string {
+    const limit = attributeLimits[name];
+    if (typeof value !== 'string' || [...value].length > limit) {
+        throw new GeometryRequestError(
+            400,
+            `Attribute "${name}" must be text up to ${limit} characters.`,
+        );
+    }
+    return value;
+}
+
 function readAttributes(value: unknown): GeometryAttributes {
     if (!isObject(value)) {
         throw new GeometryRequestError(400, 'Attributes must be an object.');
     }
 
-    const field = (name: keyof GeometryAttributes) => {
-        const raw = value[name];
-        const text = raw === undefined ? '' : raw;
-        const limit = attributeLimits[name];
-        if (typeof text !== 'string' || [...text].length > limit) {
-            throw new GeometryRequestError(
-                400,
-                `Attribute "${name}" must be text up to ${limit} characters.`,
-            );
-        }
-        return text;
-    };
-
+    const { name = '', description = '', category = '' } = value;
     return {
-        name: field('name'),
-        description: field('description'),
-        category: field('category'),
+        name: readAttribute('name', name),
+        description: readAttribute('description', description),
+        category: readAttribute('category', category),
     };
 }
 
@@ -95,6 +94,38 @@ export function readNewGeometry(body: unknown): NewGeometry {
     }
 
     return { geometry: readGeometry(body.geometry), attributes: readAttributes(body.attributes) };
+}
+
+export function readAttributeUpdate(body: unknown): Partial<GeometryAttributes> {
+    if (!isObject(body) || Object.keys(body).some((key) => key !== 'attributes')) {
+        throw new GeometryRequestError(400, 'Send a JSON object containing only attributes.');
+    }
+    if (!isObject(body.attributes)) {
+        throw new GeometryRequestError(400, 'Attributes must be an object.');
+    }
+
+    const entries = Object.entries(body.attributes);
+    if (!entries.length) {
+        throw new GeometryRequestError(400, 'Send at least one attribute to update.');
+    }
+
+    const attributes: Partial<GeometryAttributes> = {};
+    for (const [key, value] of entries) {
+        if (!Object.hasOwn(attributeLimits, key)) {
+            throw new GeometryRequestError(400, `Unknown attribute "${key}".`);
+        }
+        const name = key as keyof GeometryAttributes;
+        attributes[name] = readAttribute(name, value);
+    }
+    return attributes;
+}
+
+export function readGeometryId(value: string): number {
+    const id = Number(value);
+    if (!/^[1-9]\d*$/.test(value) || !Number.isSafeInteger(id)) {
+        throw new GeometryRequestError(400, 'Geometry ID must be a positive integer.');
+    }
+    return id;
 }
 
 export function readRequestKey(value: string | undefined) {

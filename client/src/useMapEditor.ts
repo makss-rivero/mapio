@@ -8,6 +8,7 @@ import {
     type GeometryType,
 } from './map/types';
 import { useDrawing } from './useDrawing';
+import { useGeometryDelete } from './useGeometryDelete';
 import { useGeometrySave } from './useGeometrySave';
 import { useMapHistory } from './useMapHistory';
 import { useMapRuntime } from './useMapRuntime';
@@ -15,20 +16,22 @@ import { useSavedGeometries } from './useSavedGeometries';
 
 export function useMapEditor() {
     const mapElement = useRef<HTMLDivElement>(null);
+    const mutationLock = useRef(false);
     const [geometryType, setGeometryType] = useState<GeometryType>('Point');
     const [isDrawing, setIsDrawing] = useState(false);
     const { runtime, featureCount, selectedFeature } = useMapRuntime(mapElement);
-    const savedLoad = useSavedGeometries(runtime?.source);
-    const persistence = useGeometrySave(runtime);
+    const persistence = useGeometrySave(runtime, mutationLock);
+    const deletion = useGeometryDelete(runtime, mutationLock);
+    const savedLoad = useSavedGeometries(runtime?.source, deletion.deletedIds);
     const history = useMapHistory(runtime?.source, persistence.hasPendingCreate);
     const drawing = useDrawing(runtime, isDrawing, geometryType, history.recordAddition);
     const isSketching = drawing.progress.status === 'sketching';
     const clearSelection = () => runtime?.selection.getFeatures().clear();
-    const isSelectedStored = selectedFeature !== null && isStoredGeometry(selectedFeature);
+    const view = runtime?.map.getView();
     const canDelete =
         selectedFeature !== null &&
         !isDrawing &&
-        !isSelectedStored &&
+        !(persistence.saving || deletion.deleting) &&
         !persistence.hasPendingCreate(selectedFeature);
 
     function save() {
@@ -53,10 +56,15 @@ export function useMapEditor() {
     }
 
     function deleteSelected() {
-        if (selectedFeature && canDelete) {
-            clearSelection();
-            history.deleteFeature(selectedFeature);
+        if (!selectedFeature || !canDelete) {
+            return;
         }
+        if (isStoredGeometry(selectedFeature)) {
+            deletion.deleteSaved(selectedFeature);
+            return;
+        }
+        clearSelection();
+        history.deleteFeature(selectedFeature);
     }
 
     const state: EditorState = {
@@ -67,7 +75,6 @@ export function useMapEditor() {
         canUndo: isSketching || history.canUndo,
         canSave: isDrawing && canFinishDrawing(drawing.progress, geometryType),
         canDelete,
-        isSelectedStored,
     };
     const actions: EditorActions = {
         chooseGeometry: setGeometryType,
@@ -78,20 +85,16 @@ export function useMapEditor() {
         deleteSelected,
         home: () => {
             drawing.abort();
-            if (runtime) {
-                resetView(runtime.map.getView());
+            if (view) {
+                resetView(view);
             }
         },
-        zoom: (delta) => {
-            if (runtime) {
-                zoomView(runtime.map.getView(), delta);
-            }
-        },
+        zoom: (delta) => view && zoomView(view, delta),
         escape: () => {
             setIsDrawing(false);
             clearSelection();
         },
     };
     const attributeTarget = selectedFeature ?? drawing.completedFeature;
-    return { mapElement, state, actions, attributeTarget, savedLoad, persistence };
+    return { mapElement, state, actions, attributeTarget, savedLoad, persistence, deletion };
 }

@@ -7,6 +7,7 @@ export type GeometryAttributes = {
 };
 
 export const EMPTY_ATTRIBUTES: GeometryAttributes = { name: '', description: '', category: '' };
+const ATTRIBUTE_FIELDS = ['name', 'description', 'category'] as const;
 
 export function readAttributes(feature: Feature | null): GeometryAttributes {
     const saved = feature?.get('attributes') as Partial<GeometryAttributes> | undefined;
@@ -18,9 +19,15 @@ export function readAttributes(feature: Feature | null): GeometryAttributes {
 }
 
 export function attributesMatch(first: GeometryAttributes, second: GeometryAttributes): boolean {
-    return (
-        first.name === second.name &&
-        first.description === second.description &&
-        first.category === second.category
-    );
+    return ATTRIBUTE_FIELDS.every((field) => first[field] === second[field]);
+}
+
+export function changedAttributes(saved: GeometryAttributes, draft: GeometryAttributes) {
+    const changes: Partial<GeometryAttributes> = {};
+    for (const field of ATTRIBUTE_FIELDS) {
+        if (draft[field] !== saved[field]) {
+            changes[field] = draft[field];
+        }
+    }
+    return changes;
 }

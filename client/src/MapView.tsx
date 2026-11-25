@@ -5,8 +5,9 @@ import { useGeometryAttributes } from './useGeometryAttributes';
 import { useMapEditor } from './useMapEditor';
 
 export default function MapView() {
-    const { mapElement, state, actions, attributeTarget, savedLoad, persistence } = useMapEditor();
-    const attributes = useGeometryAttributes(attributeTarget, persistence);
+    const { mapElement, state, actions, attributeTarget, savedLoad, persistence, deletion } =
+        useMapEditor();
+    const attributes = useGeometryAttributes(attributeTarget, persistence, deletion.deleting);
     const className = state.isDrawing ? 'map-workspace map-workspace--drawing' : 'map-workspace';
 
     function openAttributes() {
@@ -47,7 +48,7 @@ export default function MapView() {
                         open: openAttributes,
                     }}
                 />
-                <MapStatus state={state} savedLoad={savedLoad} />
+                <MapStatus state={state} savedLoad={savedLoad} deletion={deletion} />
             </div>
             <AttributesPanel editor={attributes} />
         </section>

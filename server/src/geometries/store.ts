@@ -1,6 +1,7 @@
 import type { DatabaseSync, SQLOutputValue } from 'node:sqlite';
+import { fingerprintGeometry } from './create-requests.ts';
 import { GeometryRequestError } from './request-error.ts';
-import type { Geometry, GeometryRecord, NewGeometry } from './types.ts';
+import type { Geometry, GeometryAttributes, GeometryRecord, NewGeometry } from './types.ts';
 
 const columns = 'id, geometry, name, description, category, created_at, updated_at';
 
@@ -25,14 +26,26 @@ export function createGeometryStore(database: DatabaseSync) {
         VALUES (?, ?, ?, ?)
         RETURNING ${columns}
     `);
-    const findExisting = database.prepare(`
-        SELECT ${columns}
-        FROM geometries
-        WHERE id = (SELECT geometry_id FROM geometry_requests WHERE request_key = ?)
+    const findRequest = database.prepare(`
+        SELECT fingerprint, ${columns}
+        FROM geometry_create_requests
+        LEFT JOIN geometries ON geometries.id = geometry_create_requests.geometry_id
+        WHERE request_key = ?
     `);
-    const insertRequest = database.prepare(
-        'INSERT INTO geometry_requests (request_key, geometry_id) VALUES (?, ?)',
-    );
+    const insertRequest = database.prepare(`
+        INSERT INTO geometry_create_requests (request_key, geometry_id, fingerprint)
+        VALUES (?, ?, ?)
+    `);
+    const updateRow = database.prepare(`
+        UPDATE geometries
+        SET name = COALESCE(?, name),
+            description = COALESCE(?, description),
+            category = COALESCE(?, category),
+            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+        WHERE id = ?
+        RETURNING ${columns}
+    `);
+    const deleteRow = database.prepare('DELETE FROM geometries WHERE id = ?');
 
     function insert(payload: NewGeometry) {
         const { name, description, category } = payload.attributes;
@@ -49,20 +62,25 @@ export function createGeometryStore(database: DatabaseSync) {
     }
 
     function insertWithKey(payload: NewGeometry, key: string) {
-        const existing = findExisting.get(key);
+        const fingerprint = fingerprintGeometry(payload);
+        const existing = findRequest.get(key);
         if (existing) {
-            const record = toRecord(existing);
-            const previous = { geometry: record.geometry, attributes: record.attributes };
-            if (JSON.stringify(previous) !== JSON.stringify(payload)) {
+            if (existing.fingerprint !== fingerprint) {
                 throw new GeometryRequestError(
                     409,
                     'This Idempotency-Key was used for a different geometry.',
                 );
             }
-            return record;
+            if (existing.id === null) {
+                throw new GeometryRequestError(
+                    410,
+                    'The geometry created by this request was deleted.',
+                );
+            }
+            return toRecord(existing);
         }
         const record = insert(payload);
-        insertRequest.run(key, record.id);
+        insertRequest.run(key, record.id, fingerprint);
         return record;
     }
 
@@ -84,5 +102,22 @@ export function createGeometryStore(database: DatabaseSync) {
         }
     }
 
-    return { create, list: () => listRows.all().map(toRecord) };
+    function updateAttributes(
+        id: number,
+        { name, description, category }: Partial<GeometryAttributes>,
+    ) {
+        const row = updateRow.get(name ?? null, description ?? null, category ?? null, id);
+        if (!row) {
+            throw new GeometryRequestError(404, 'Geometry not found.');
+        }
+        return toRecord(row);
+    }
+
+    function remove(id: number) {
+        if (deleteRow.run(id).changes === 0) {
+            throw new GeometryRequestError(404, 'Geometry not found.');
+        }
+    }
+
+    return { create, updateAttributes, remove, list: () => listRows.all().map(toRecord) };
 }

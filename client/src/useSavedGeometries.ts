@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type RefObject } from 'react';
 import type VectorSource from 'ol/source/Vector.js';
 import { listGeometries, readStoredGeometry } from './map/geometryApi';
 
@@ -11,7 +11,10 @@ const loading: LoadState = { status: 'loading', error: '' };
 
 export type SavedGeometriesLoad = LoadState & { retry: () => void };
 
-export function useSavedGeometries(source?: VectorSource): SavedGeometriesLoad {
+export function useSavedGeometries(
+    source: VectorSource | undefined,
+    deletedIds: RefObject<Set<number>>,
+): SavedGeometriesLoad {
     const [state, setState] = useState(loading);
     const [attempt, setAttempt] = useState(0);
 
@@ -28,7 +31,11 @@ export function useSavedGeometries(source?: VectorSource): SavedGeometriesLoad {
                     return;
                 }
 
-                source.addFeatures(records.map((record) => readStoredGeometry(record)));
+                source.addFeatures(
+                    records
+                        .filter((record) => !deletedIds.current.has(record.id))
+                        .map(readStoredGeometry),
+                );
                 setState({ status: 'ready', error: '' });
             })
             .catch(() => {
@@ -38,7 +45,7 @@ export function useSavedGeometries(source?: VectorSource): SavedGeometriesLoad {
             });
 
         return () => controller.abort();
-    }, [source, attempt]);
+    }, [source, attempt, deletedIds]);
 
     function retry() {
         setState(loading);

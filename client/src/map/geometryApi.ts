@@ -23,8 +23,8 @@ export class GeometryRequestError extends Error {
     }
 }
 
-async function fetchJson<T>(options: RequestInit): Promise<T> {
-    const response = await fetch(endpoint, options);
+async function fetchRequest(path: string, options: RequestInit): Promise<Response> {
+    const response = await fetch(path, options);
 
     if (!response.ok) {
         const body: unknown = await response.json().catch(() => null);
@@ -35,21 +35,41 @@ async function fetchJson<T>(options: RequestInit): Promise<T> {
         throw new GeometryRequestError(message, response.status);
     }
 
-    return response.json() as Promise<T>;
+    return response;
+}
+
+async function fetchJson<T>(path: string, options: RequestInit): Promise<T> {
+    return (await fetchRequest(path, options)).json() as Promise<T>;
 }
 
 export function listGeometries(signal?: AbortSignal) {
     const timeout = AbortSignal.timeout(15000);
-    return fetchJson<StoredGeometry[]>({
+    return fetchJson<StoredGeometry[]>(endpoint, {
         signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     });
 }
 
 export function createGeometry(input: GeometryInput, requestKey: string) {
-    return fetchJson<StoredGeometry>({
+    return fetchJson<StoredGeometry>(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Idempotency-Key': requestKey },
         body: JSON.stringify(input),
+        signal: AbortSignal.timeout(15000),
+    });
+}
+
+export function updateGeometry(id: number, attributes: Partial<GeometryAttributes>) {
+    return fetchJson<StoredGeometry>(`${endpoint}/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attributes }),
+        signal: AbortSignal.timeout(15000),
+    });
+}
+
+export async function deleteGeometry(id: number): Promise<void> {
+    await fetchRequest(`${endpoint}/${id}`, {
+        method: 'DELETE',
         signal: AbortSignal.timeout(15000),
     });
 }

@@ -11,17 +11,22 @@ import type { GeometrySave } from './useGeometrySave';
 
 export type AttributesEditor = ReturnType<typeof useGeometryAttributes>;
 
-export function useGeometryAttributes(target: Feature | null, persistence: GeometrySave) {
+export function useGeometryAttributes(
+    target: Feature | null,
+    persistence: GeometrySave,
+    deleting: Feature | null,
+) {
     const [panelOpen, setPanelOpen] = useState(false);
     const [drafts, setDrafts] = useState(new Map<Feature, GeometryAttributes>());
     const [feedback, setFeedback] = useState<{ feature: Feature; text: string } | null>(null);
     const stored = target !== null && isStoredGeometry(target);
     const pending = target !== null && persistence.hasPendingCreate(target);
     const isSaving = target !== null && persistence.saving === target;
-    const readOnly = stored || pending;
+    const readOnly = pending || isSaving || (target !== null && target === deleting);
     const saved = readAttributes(target);
-    const draft = (!stored && target && drafts.get(target)) || saved;
+    const draft = (target && drafts.get(target)) || saved;
     const isDirty = !attributesMatch(draft, saved);
+    const canSave = target !== null && !persistence.saving && !deleting && (!stored || isDirty);
     const saveFeedback = persistence.feedback?.feature === target ? persistence.feedback : null;
     const message = getMessage({
         isSaving,
@@ -56,6 +61,20 @@ export function useGeometryAttributes(target: Feature | null, persistence: Geome
         }
     }
 
+    async function save() {
+        if (!canSave || !target) {
+            return;
+        }
+        setFeedback(null);
+        if (await persistence.save(target, draft)) {
+            setDrafts((previous) => {
+                const remaining = new Map(previous);
+                remaining.delete(target);
+                return remaining;
+            });
+        }
+    }
+
     return {
         canOpen: target !== null,
         isOpen: panelOpen && target !== null,
@@ -64,16 +83,11 @@ export function useGeometryAttributes(target: Feature | null, persistence: Geome
         isDirty,
         readOnly,
         isSaving,
-        canSave: target !== null && !stored && persistence.saving === null,
+        canSave,
         message,
         hasError: saveFeedback?.isError || (pending && !isSaving),
         change,
-        save: () => {
-            if (target) {
-                setFeedback(null);
-                void persistence.save(target, draft);
-            }
-        },
+        save,
         discard,
         open: () => {
             setPanelOpen(true);
@@ -95,7 +109,7 @@ function getMessage({
     feedback: string;
 }) {
     if (isSaving) {
-        return 'Saving geometry and attributes…';
+        return stored ? 'Saving attributes…' : 'Saving geometry and attributes…';
     }
     if (feedback) {
         return feedback;

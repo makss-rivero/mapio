@@ -2,7 +2,12 @@ import type { DatabaseSync } from 'node:sqlite';
 import express, { type ErrorRequestHandler } from 'express';
 import { GeometryRequestError } from './request-error.ts';
 import { createGeometryStore } from './store.ts';
-import { readNewGeometry, readRequestKey } from './validation.ts';
+import {
+    readAttributeUpdate,
+    readGeometryId,
+    readNewGeometry,
+    readRequestKey,
+} from './validation.ts';
 
 const jsonErrorMessages = {
     400: 'Send a valid JSON request body.',
@@ -34,14 +39,24 @@ const handleGeometryError: ErrorRequestHandler = (error: unknown, _request, resp
 export function createGeometryRouter(database: DatabaseSync) {
     const router = express.Router();
     const store = createGeometryStore(database);
+    const parseJson = express.json({ limit: '256kb' });
 
     router.get('/', (_request, response) => {
         response.json(store.list());
     });
-    router.post('/', express.json({ limit: '256kb' }), (request, response) => {
+    router.post('/', parseJson, (request, response) => {
         const payload = readNewGeometry(request.body);
         const key = readRequestKey(request.get('Idempotency-Key'));
         response.status(201).json(store.create(payload, key));
+    });
+    router.patch('/:id', parseJson, (request, response) => {
+        const id = readGeometryId(request.params.id);
+        const attributes = readAttributeUpdate(request.body);
+        response.json(store.updateAttributes(id, attributes));
+    });
+    router.delete('/:id', (request, response) => {
+        store.remove(readGeometryId(request.params.id));
+        response.status(204).end();
     });
     router.use(handleGeometryError);
 

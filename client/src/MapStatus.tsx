@@ -1,4 +1,5 @@
 import type { EditorState, GeometryType } from './map/types';
+import type { GeometryDeletion } from './useGeometryDelete';
 import type { SavedGeometriesLoad } from './useSavedGeometries';
 
 const DRAWING_INSTRUCTIONS: Record<GeometryType, string> = {
@@ -17,9 +18,8 @@ function getStatusContent(state: EditorState) {
     if (state.selectedType) {
         return {
             title: `${state.selectedType} selected`,
-            instructions: state.isSelectedStored
-                ? 'Open Attributes to view this saved geometry.'
-                : 'Use Attributes to edit details, or the trash button to delete this geometry.',
+            instructions:
+                'Use Attributes to edit details, or the trash button to delete this geometry.',
         };
     }
     return {
@@ -32,9 +32,10 @@ function getStatusContent(state: EditorState) {
 type MapStatusProps = {
     state: EditorState;
     savedLoad: SavedGeometriesLoad;
+    deletion: Pick<GeometryDeletion, 'deleting' | 'message'>;
 };
 
-export default function MapStatus({ state, savedLoad }: MapStatusProps) {
+export default function MapStatus({ state, savedLoad, deletion }: MapStatusProps) {
     const { title, instructions } = getStatusContent(state);
     const countLabel = state.featureCount === 1 ? 'geometry' : 'geometries';
     return (
@@ -47,7 +48,12 @@ export default function MapStatus({ state, savedLoad }: MapStatusProps) {
                 </span>
                 {savedLoad.status === 'loading' && <span>Loading saved geometries…</span>}
                 {savedLoad.status === 'error' && <span>{savedLoad.error}</span>}
+                {deletion.deleting && <span>Deleting saved geometry…</span>}
+                {deletion.message && !deletion.message.isError && (
+                    <span>{deletion.message.text}</span>
+                )}
             </div>
+            {deletion.message?.isError && <span role="alert">{deletion.message.text}</span>}
             {savedLoad.status === 'error' && (
                 <button className="map-status__retry" type="button" onClick={savedLoad.retry}>
                     Retry loading

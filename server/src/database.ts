@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { initializeCreateRequests } from './geometries/create-requests.ts';
 
 export function openDatabase(path: string) {
     mkdirSync(dirname(path), { recursive: true });
@@ -18,12 +19,7 @@ export function openDatabase(path: string) {
                 updated_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
             ) STRICT
         `);
-        database.exec(`
-            CREATE TABLE IF NOT EXISTS geometry_requests (
-                request_key TEXT PRIMARY KEY,
-                geometry_id INTEGER NOT NULL REFERENCES geometries(id) ON DELETE CASCADE
-            ) STRICT
-        `);
+        initializeCreateRequests(database);
         return database;
     } catch (error) {
         database.close();

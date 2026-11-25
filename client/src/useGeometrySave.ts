@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, type RefObject } from 'react';
 import Feature from 'ol/Feature.js';
-import type { GeometryAttributes } from './map/attributes';
+import { changedAttributes, readAttributes, type GeometryAttributes } from './map/attributes';
 import {
     createGeometry,
     geometryInput,
     GeometryRequestError,
-    isStoredGeometry,
+    updateGeometry,
     type GeometryInput,
     type StoredGeometry,
 } from './map/geometryApi';
@@ -38,51 +38,70 @@ function wasRejected(error: unknown): error is GeometryRequestError {
     );
 }
 
-export function useGeometrySave(runtime: MapRuntime | null) {
+export function useGeometrySave(runtime: MapRuntime | null, mutationLock: RefObject<boolean>) {
     const attempts = useRef(new WeakMap<Feature, CreateAttempt>());
-    const busy = useRef(false);
     const [saving, setSaving] = useState<Feature | null>(null);
     const [feedback, setFeedback] = useState<SaveFeedback | null>(null);
 
-    async function save(feature: Feature, attributes: GeometryAttributes) {
-        if (busy.current || !runtime || isStoredGeometry(feature)) {
-            return;
+    function prepareCreate(feature: Feature, attributes: GeometryAttributes) {
+        const cached = attempts.current.get(feature);
+        if (cached) {
+            return cached;
         }
-
-        let attempt = attempts.current.get(feature);
-        if (!attempt) {
-            try {
-                attempt = { key: crypto.randomUUID(), input: geometryInput(feature, attributes) };
-            } catch (error) {
-                const message =
-                    error instanceof Error ? error.message : 'Could not prepare geometry.';
-                setFeedback({ feature, message, isError: true });
-                return;
-            }
+        try {
+            const attempt = { key: crypto.randomUUID(), input: geometryInput(feature, attributes) };
             attempts.current.set(feature, attempt);
+            return attempt;
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Could not prepare geometry.';
+            setFeedback({ feature, message, isError: true });
+        }
+    }
+
+    async function save(feature: Feature, attributes: GeometryAttributes): Promise<boolean> {
+        if (mutationLock.current || !runtime) {
+            return false;
+        }
+        const id = feature.getId();
+        const stored = typeof id === 'number';
+        const changes = changedAttributes(readAttributes(feature), attributes);
+        const attempt = stored ? undefined : prepareCreate(feature, attributes);
+        let request: () => Promise<StoredGeometry>;
+        if (attempt) {
+            request = () => createGeometry(attempt.input, attempt.key);
+        } else if (stored && Object.keys(changes).length > 0) {
+            request = () => updateGeometry(id, changes);
+        } else {
+            return false;
         }
 
-        busy.current = true;
+        mutationLock.current = true;
         setSaving(feature);
         setFeedback(null);
         try {
-            const record = await createGeometry(attempt.input, attempt.key);
+            const record = await request();
             applySavedRecord(runtime, feature, record);
             attempts.current.delete(feature);
             setFeedback({
                 feature,
-                message: 'Geometry and attributes saved to the database.',
+                message: stored
+                    ? 'Attributes saved.'
+                    : 'Geometry and attributes saved to the database.',
                 isError: false,
             });
+            return true;
         } catch (error) {
-            let message = 'Save could not be confirmed. Retry Save to check.';
+            let message = stored
+                ? 'Could not confirm the attribute update. Retry Save.'
+                : 'Save could not be confirmed. Retry Save to check.';
             if (wasRejected(error)) {
                 attempts.current.delete(feature);
                 message = error.message;
             }
             setFeedback({ feature, message, isError: true });
+            return false;
         } finally {
-            busy.current = false;
+            mutationLock.current = false;
             setSaving(null);
         }
     }
